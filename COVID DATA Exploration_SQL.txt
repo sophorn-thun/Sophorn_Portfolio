@@ -1,0 +1,109 @@
+** Covid 19 Data Exploration -- Data is obtained from Our World In Data Organization, accessed in November 2022**
+
+Functions used in the exploration include Aggregate Functions, Creating Views, Converting Data Types, Using Joins, CTE's, and Windows Functions, 
+
+-- Quick glance into the data in the Coviddeath table
+
+SELECT *
+FROM Coviddeath
+WHERE continent IS NOT NULL 
+
+
+-- Select columns of main data to be looking into
+
+SELECT location, date, total_cases, new_cases, total_deaths, population
+FROM Coviddeath
+WHERE continent IS NOT NULL
+
+-- Total cases in comparison to total population, in Sweden
+
+SELECT location, date, Population, total_cases,  (total_cases/population)*100 AS PercentagePopulationInfected
+FROM Coviddeath
+WHERE location = 'Sweden'
+
+
+-- Total deaths in comparison to total cases, in Sweden
+
+SELECT location, date, total_cases,total_deaths, (total_deaths/total_cases)*100 AS PercentageDeath
+FROM Coviddeath
+WHERE location = 'Sweden'
+AND continent IS  NOT NULL
+
+
+-- Highest percentage of infected cases to population by countries
+
+SELECT location, population, MAX(total_cases) AS HighestCases,  Max((total_cases/population))*100 AS PercentagePopulationInfected
+FROM Coviddeath
+GROUP BY Location, Population
+ORDER BY PercentagePopulationInfected DESC
+
+
+-- Highest death cases by countries
+
+SELECT location, MAX(cast(Total_deaths AS int)) AS TotalDeath
+FROM Coviddeath
+WHERE continent IS NOT NULL
+GROUP BY Location
+ORDER BY TotalDeath DESC
+
+-- Highest death cases by countries in EUROPE
+
+SELECT location, MAX(cast(Total_deaths AS int)) AS TotalDeath
+FROM Coviddeath
+WHERE continent = 'Europe' AND continent IS NOT NULL 
+GROUP BY Location
+ORDER BY TotalDeath DESC
+
+-- Highest death cases by continent
+
+SELECT continent, MAX(cast(Total_deaths as int)) as TotalDeath
+FROM Coviddeath 
+WHERE continent IS NOT NULL
+GROUP BY continent
+ORDER BY TotalDeath DESC
+
+-- Global cases
+
+SELECT date, SUM(new_cases) AS global_cases, SUM(cast(new_deaths as int)) AS global_deaths, SUM(cast(new_deaths as int))/SUM(New_Cases)*100 as PercentageDeathGlobal
+FROM Coviddeath
+WHERE continent IS NOT NULL
+GROUP BY date 
+ORDER BY PercentageDeathGlobal DESC
+
+--Join Coviddeath table and Covidvaccine table
+
+
+SELECT cd.continent, cd.location, cd.date, cd.population, cv.new_vaccinations, SUM(cv.new_vaccinations) OVER (PARTITION BY cd.location ORDER BY cd.location, cd.date) AS VaccinatedPopulation
+FROM Coviddeath AS cd
+JOIN Covidvaccine AS cv
+	ON cd.location = cv.location
+	AND cd.date = cv.date
+WHERE cd.continent IS NOT NULL
+ORDER By 2,3
+
+
+-- Calculation on Partition By using previous query
+
+WITH PopvsVac (Continent, Location, Date, Population, New_Vaccinations, RollingPeopleVaccinated) AS (
+	SELECT cd.continent, cd.location, cd.date, cd.population, cv.new_vaccinations, SUM(vc.new_vaccinations) OVER (PARTITION BY dea.Location Order by dea.location, dea.Date) AS VaccinatedPopulation
+	FROM Coviddeath AS cd
+	JOIN Covidvaccine AS cv
+		ON cd.location = cv.location
+		AND cd.date = cv.date
+	WHERE cd.continent IS NOT NULL)
+
+SELECT *, (VaccinatedPopulation/Population)*100 AS PercentageVaccinatedPopulation
+FROM PopvsVac
+
+
+
+
+-- Storing data for visualization
+
+CREATE VIEW PercentageVaccinatedPopulation AS
+SELECT cd.continent, cd.location, cd.date, cd.population, cv.new_vaccinations, SUM(cv.new_vaccinations) OVER (PARTITION BY cd.location ORDER BY cd.location, cd.date) AS VaccinatedPopulation
+FROM Coviddeath AS cd
+JOIN Covidvaccine AS cv
+	ON cd.location = cv.location
+	AND cd.date = cv.date
+WHERE cd.continent IS NOT NULL
