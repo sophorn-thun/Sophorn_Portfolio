@@ -2,7 +2,7 @@
 
 Functions used in the exploration include Aggregate Functions, Creating Views, Converting Data Types, Using Joins, CTE's, and Windows Functions, 
 
--- Quick glance into the data in the Coviddeath table
+-- Quick glance into the data
 
 SELECT *
 FROM Coviddeath
